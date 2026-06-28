@@ -1,7 +1,7 @@
 // Hàm hiển thị giao diện Web App
 function doGet() {
   // Tạo template từ file Index
-  var template = HtmlService.createTemplateFromFile('index');
+  var template = HtmlService.createTemplateFromFile('Index');
   
   // Tự động lấy URL của Web App gán vào biến 'url'
   template.url = ScriptApp.getService().getUrl(); 
@@ -30,7 +30,7 @@ function doPost(e) {
     }
     // Nếu trang tính chưa có dữ liệu, tự động tạo hàng tiêu đề (Header)
     if (sheet1.getLastRow() === 0) {
-      sheet1.appendRow(["Mã Hộ", "Chủ Hộ", "Địa Chỉ", "SĐT Hộ", "Tổng Số Nhân Khẩu"]);
+      sheet1.appendRow(["Mã Hộ", "Chủ Hộ", "Địa Chỉ", "Khu Vực", "SĐT Hộ", "Tổng Số Nhân Khẩu"]);
     }
     
     // Tự động tính Mã hộ tăng dần từ 1 dựa trên số dòng hiện tại của Sheet 1
@@ -41,6 +41,7 @@ function doPost(e) {
       maHoTuDong,
       data.chuHo,
       data.diaChi,
+      m.khuVuc,
       "'" + data.sdtHo, // Thêm dấu nháy đơn để giữ định dạng chuỗi số điện thoại
       data.tongNhanKhau
     ]);
@@ -69,7 +70,7 @@ function doPost(e) {
         maHoTuDong, // Cột đầu tiên là Mã hộ (Dùng chung mã hộ vừa tạo ở Sheet 1)
         m.stt,
         m.hoTen,
-		m.hoKhau,
+		    m.hoKhau,
         m.gioiTinh == "1" ? "Nam" : "Nữ", // Chuyển đổi mã số sang text cho dễ đọc
         m.ngaySinh,
         "'" + m.cccd,       // Thêm dấu nháy đơn tránh mất số 0 ở đầu CCCD
