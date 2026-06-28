@@ -11,7 +11,7 @@ function doGet() {
 // Hàm tiếp nhận dữ liệu từ Form gửi lên và tách ghi vào 2 Sheet
 function doPost(e) {
   try {
-    var data = JSON.parse(e.postData.contents);
+    var data = JSON.parse(e.postData.contents || '{}');
 
     var spreadsheetId = '1gj70N3TTJUvAZxU_C0f_TN3HxTuwBCw6r80it2g1nQM';
     var ss = SpreadsheetApp.openById(spreadsheetId);
@@ -25,7 +25,7 @@ function doPost(e) {
       sheet1.appendRow(['Mã Hộ', 'Chủ Hộ', 'Địa Chỉ', 'Khu Vực', 'SĐT Hộ', 'Tổng Số Nhân Khẩu']);
     }
 
-    var maHoTuDong = sheet1.getLastRow();
+    var maHoTuDong = Math.max(sheet1.getLastRow(), 1);
 
     sheet1.appendRow([
       maHoTuDong,
@@ -50,11 +50,13 @@ function doPost(e) {
     }
 
     var members = Array.isArray(data.members) ? data.members : [];
+    var memberRows = [];
+
     for (var i = 0; i < members.length; i++) {
       var m = members[i] || {};
-      sheet2.appendRow([
+      memberRows.push([
         maHoTuDong,
-        m.stt || i + 1,
+        m.stt || (i + 1),
         m.hoTen || '',
         m.hoKhau || '',
         m.thoiGianTamTru || '',
@@ -68,6 +70,10 @@ function doPost(e) {
         m.nhomDoiTuong || '',
         m.khamTaiNha || ''
       ]);
+    }
+
+    if (memberRows.length > 0) {
+      sheet2.getRange(sheet2.getLastRow() + 1, 1, memberRows.length, memberRows[0].length).setValues(memberRows);
     }
 
     return ContentService
