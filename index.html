@@ -301,6 +301,11 @@
             display: block;
         }
 
+        button[type="submit"]:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
         .warning-note {
             background-color: #fef2f2;
             color: #b91c1c;
@@ -309,6 +314,62 @@
             border-radius: 10px;
             margin: 25px 0;
             font-size: 18px;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(17, 24, 39, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 9999;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-box {
+            width: 100%;
+            max-width: 420px;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .modal-header {
+            padding: 16px 20px;
+            background: #f0f4ff;
+            color: var(--primary-blue);
+            font-size: 20px;
+            font-weight: 700;
+            border-bottom: 1px solid #dbeafe;
+        }
+
+        .modal-body {
+            padding: 24px 20px;
+            font-size: 18px;
+            color: var(--text-main);
+        }
+
+        .modal-footer {
+            padding: 0 20px 20px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .modal-btn {
+            background: var(--primary-blue);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 12px 22px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -371,13 +432,39 @@
                 <strong>Lưu ý quan trọng:</strong> Các gia đình kê khai đúng đối tượng và thông tin để phục vụ công tác tổng hợp, sắp xếp khám sức khỏe cộng đồng.
             </div>
 
-            <button type="submit">HOÀN THÀNH KHẢO SÁT 🚀</button>
+            <button type="submit" id="submitBtn">HOÀN THÀNH KHẢO SÁT 🚀</button>
         </form>
     </div>
 </div>
 
+<div class="modal-overlay" id="messageModal">
+    <div class="modal-box">
+        <div class="modal-header" id="modalTitle">Thông báo</div>
+        <div class="modal-body" id="modalMessage"></div>
+        <div class="modal-footer">
+            <button type="button" class="modal-btn" id="modalCloseBtn">Đóng</button>
+        </div>
+    </div>
+</div>
+
 <script>
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz-placeholder/exec';
     let memberCount = 0;
+
+    function showModal(title, message) {
+        document.getElementById('modalTitle').textContent = title;
+        document.getElementById('modalMessage').textContent = message;
+        document.getElementById('messageModal').classList.add('show');
+    }
+
+    function hideModal() {
+        document.getElementById('messageModal').classList.remove('show');
+    }
+
+    document.getElementById('modalCloseBtn').addEventListener('click', hideModal);
+    document.getElementById('messageModal').addEventListener('click', function(event) {
+        if (event.target === this) hideModal();
+    });
 
     function createMemberBlock(index, isHead = false) {
         return `
@@ -532,20 +619,7 @@
         document.getElementById('membersContainer').innerHTML = createMemberBlock(1, true);
     }
 
-    document.getElementById('btnAddMember').addEventListener('click', function() {
-        memberCount++;
-        document.getElementById('membersContainer').insertAdjacentHTML('beforeend', createMemberBlock(memberCount));
-        updateSTT();
-    });
-
-    document.getElementById('surveyForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-
-        if (!this.checkValidity()) {
-            this.reportValidity();
-            return;
-        }
-
+    function collectFormData() {
         const household = {
             chuHo: document.getElementById('chuHo').value.trim(),
             diaChi: document.getElementById('diaChi').value.trim(),
@@ -557,11 +631,12 @@
         const members = [];
         const blocks = document.querySelectorAll('.member-block');
 
-        blocks.forEach((block) => {
+        blocks.forEach((block, index) => {
             const indexGoc = block.getAttribute('data-index');
             const getCheckedValue = (name) => block.querySelector(`input[name="${name}"]:checked`)?.value || '';
 
             members.push({
+                stt: index + 1,
                 hoTen: block.querySelector('.m-hoTen')?.value.trim() || '',
                 hoKhau: getCheckedValue(`m${indexGoc}-hoKhau`),
                 thoiGianTamTru: getCheckedValue(`m${indexGoc}-thoiGianTamTru`),
@@ -577,8 +652,53 @@
             });
         });
 
-        console.log('Dữ liệu khảo sát:', { household, members });
-        alert('Đã kiểm tra và form hiện chạy bình thường. Dữ liệu mẫu đã được ghi ra Console.');
+        return { ...household, members };
+    }
+
+    document.getElementById('btnAddMember').addEventListener('click', function() {
+        memberCount++;
+        document.getElementById('membersContainer').insertAdjacentHTML('beforeend', createMemberBlock(memberCount));
+        updateSTT();
+    });
+
+    document.getElementById('surveyForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        if (!this.checkValidity()) {
+            this.reportValidity();
+            return;
+        }
+
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'ĐANG GỬI...';
+
+        try {
+            const payload = collectFormData();
+            const response = await fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                this.reset();
+                initFirstMember();
+                showModal('Thông báo', 'Gửi dữ liệu thành công.');
+            } else {
+                throw new Error(result.message || 'Không thể gửi dữ liệu.');
+            }
+        } catch (error) {
+            showModal('Thông báo', 'Gửi dữ liệu thất bại. Vui lòng thử lại.');
+            console.error(error);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'HOÀN THÀNH KHẢO SÁT 🚀';
+        }
     });
 
     initFirstMember();
