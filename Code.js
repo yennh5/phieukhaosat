@@ -55,7 +55,7 @@ function doPost(e) {
     for (var i = 0; i < members.length; i++) {
       var m = members[i] || {};
       memberRows.push([
-        "'" + maHoHoTuDong,
+        "'" + maHoTuDong,
         m.stt || (i + 1),
         m.hoTen || '',
         m.hoKhau || '',
