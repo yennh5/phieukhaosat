@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <title>Phiếu Điều Tra Khám Sức Khỏe Điện Tử</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -414,11 +414,11 @@
             </div>
             <div class="form-group">
                 <label class="main-label">Số điện thoại liên hệ của hộ: <span style="color:red">*</span></label>
-                <input type="tel" id="sdtHo" required placeholder="Nhập số điện thoại...">
+                <input type="tel" id="sdtHo" pattern="[0-9]{9,11}" title="Vui lòng nhập số điện thoại hợp lệ (9-11 số)" required placeholder="Nhập số điện thoại...">
             </div>
             <div class="form-group">
                 <label class="main-label">Tổng số nhân khẩu thường trú (người): <span style="color:red">*</span></label>
-                <input type="number" id="tongNhanKhau" required placeholder="Ví dụ: 4">
+                <input type="number" id="tongNhanKhau" min="1" required placeholder="Ví dụ: 4">
             </div>
 
             <h3>THÔNG TIN THÀNH VIÊN</h3>
@@ -507,7 +507,7 @@
                 </div>
                 <div class="form-group">
                     <label class="main-label">Số điện thoại liên hệ cá nhân:</label>
-                    <input type="tel" class="m-sdtCaNhan" placeholder="Nhập số điện thoại riêng (nếu có)...">
+                    <input type="tel" class="m-sdtCaNhan" pattern="[0-9]{9,11}" title="Vui lòng nhập số điện thoại hợp lệ (9-11 số)" placeholder="Nhập số điện thoại riêng (nếu có)...">
                 </div>
                 <div class="form-group">
                     <label class="main-label">Nghề nghiệp / Nơi công tác, học tập: <span style="color:red">*</span></label>
@@ -617,6 +617,12 @@
     function initFirstMember() {
         memberCount = 1;
         document.getElementById('membersContainer').innerHTML = createMemberBlock(1, true);
+        document.getElementById('chuHo').addEventListener('input', function() {
+            const firstMemberName = document.querySelector('.member-block[data-index="1"] .m-hoTen');
+            if (firstMemberName) {
+                firstMemberName.value = this.value;
+            }
+        });
     }
 
     function collectFormData() {
@@ -683,7 +689,13 @@
                 body: JSON.stringify(payload)
             });
 
-            const result = await response.json();
+            const responseText = await response.text();
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (e) {
+                throw new Error('Lỗi máy chủ: Không thể đọc phản hồi từ hệ thống.');
+            }
 
             if (result.status === 'success') {
                 this.reset();
