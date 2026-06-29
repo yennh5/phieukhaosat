@@ -63,16 +63,25 @@ function doPost(e) {
 
     for (var i = 0; i < members.length; i++) {
       var m = members[i] || {};
+
+      // LOGIC XỬ LÝ TRƯỜNG HỘ KHẨU
+      var hoKhauLuu = m.hoKhau || '';
+      if (hoKhauLuu === 'Tạm trú' && m.thoiGianTamTru) {
+        hoKhauLuu = 'Tạm trú (' + m.thoiGianTamTru + ')';
+      }
+
+      var sdtCaNhanLuu = m.sdtCaNhan ? "'" + m.sdtCaNhan : "";
+      var khamSangLocLuu = m.khamSangLoc ? "'" + m.khamSangLoc : "";
+      
       memberRows.push([
         "'" + maHoTuDong,
         m.stt || (i + 1),
         m.hoTen || '',
-        m.hoKhau || '',
-        m.thoiGianTamTru || '',
+        hoKhauLuu,
         m.gioiTinh || '',
         m.ngaySinh || '',
         "'" + (m.cccd || ''),
-        "'" + (m.sdtCaNhan || ''),
+        sdtCaNhanLuu,
         m.ngheNghiep || '',
         m.khamSucKhoe || 'Không đăng ký',
         m.khamSangLoc || '',
