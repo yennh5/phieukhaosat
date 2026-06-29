@@ -430,7 +430,7 @@
             <button type="button" class="btn-add" id="btnAddMember">+ Thêm thành viên khác</button>
 
             <div class="warning-note">
-                <strong>Lưu ý quan trọng:</strong> Các gia đình kê khai đúng đối tượng và thông tin để phục vụ công tác tổng hợp, sắp xếp khám sức khỏe cộng đồng.
+                <strong>Lưu ý quan trọng:</strong> Các gia đình kê khai ĐÚNG đối tượng. Vì đối tượng 3 (người lao động) và đối tượng 4 (thuộc Bộ Quốc phòng, Bộ Công an quản lý) đã được khám tại đơn vị quản lý, không thuộc diện được thành phố chi trả kinh phí khám sức khoẻ/sàng lọc. Nếu trường hợp gia đình kê khai sai đối tượng thì phải thanh toán toàn bộ chi phí đó.
             </div>
 
             <button type="submit" id="submitBtn">HOÀN THÀNH KHẢO SÁT 🚀</button>
@@ -542,15 +542,15 @@
                 <div class="form-group">
                     <label class="main-label">Nhóm đối tượng: <span style="color:red">*</span></label>
                     <div class="options-grid">
-                        <label><input type="radio" name="m${index}-nhomDoiTuong" value="Người cao tuổi" required> Người cao tuổi</label>
-                        <label><input type="radio" name="m${index}-nhomDoiTuong" value="Người khuyết tật" required> Người khuyết tật</label>
-                        <label><input type="radio" name="m${index}-nhomDoiTuong" value="Người thuộc hộ nghèo, cận nghèo" required> Người thuộc hộ nghèo, cận nghèo</label>
-                        <label><input type="radio" name="m${index}-nhomDoiTuong" value="Người có công" required> Người có công</label>
-                        <label><input type="radio" name="m${index}-nhomDoiTuong" value="Người mắc bệnh mạn tính" required> Người mắc bệnh mạn tính</label>
-                        <label><input type="radio" name="m${index}-nhomDoiTuong" value="Trẻ em mầm non, học sinh phổ thông" required> Trẻ em mầm non, học sinh phổ thông</label>
-                        <label><input type="radio" name="m${index}-nhomDoiTuong" value="Người lao động trong công ty, doanh nghiệp" required> Người lao động trong công ty, doanh nghiệp</label>
-                        <label><input type="radio" name="m${index}-nhomDoiTuong" value="Đối tượng thuộc BQP, BCA quản lý" required> Đối tượng thuộc BQP, BCA quản lý</label>
-                        <label><input type="radio" name="m${index}-nhomDoiTuong" value="Các đối tượng không thuộc các đối tượng trên" required> Các đối tượng không thuộc các đối tượng trên</label>
+                        <label><input type="radio" name="m${index}-nhomDoiTuong" value="(1a) Người cao tuổi" required> (1a) Người cao tuổi</label>
+                        <label><input type="radio" name="m${index}-nhomDoiTuong" value="(1b) người khuyết tật" required> (1b) người khuyết tật</label>
+                        <label><input type="radio" name="m${index}-nhomDoiTuong" value="(1c) người thuộc hộ nghèo, cận nghèo" required> (1c) người thuộc hộ nghèo, cận nghèo</label>
+                        <label><input type="radio" name="m${index}-nhomDoiTuong" value="(1d) người có công" required> (1d) người có công</label>
+                        <label><input type="radio" name="m${index}-nhomDoiTuong" value="(1e) người mắc bệnh mạn tính" required> (1e) người mắc bệnh mạn tính</label>
+                        <label><input type="radio" name="m${index}-nhomDoiTuong" value="(2) Trẻ em trong cơ sở giáo dục mầm non, học sinh trong các cơ sở giáo dục phổ thông" required> (2) Trẻ em trong cơ sở giáo dục mầm non, học sinh trong các cơ sở giáo dục phổ thông</label>
+                        <label><input type="radio" name="m${index}-nhomDoiTuong" value="(3) Người lao động trong các công ty, doanh nghiệp" required> (3) Người lao động trong các công ty, doanh nghiệp</label>
+                        <label><input type="radio" name="m${index}-nhomDoiTuong" value="(4) Các đối tượng thuộc Bộ Quốc phòng,   Bộ Công an quản lý" required> (4) Các đối tượng thuộc Bộ Quốc phòng,   Bộ Công an quản lý</label>
+                        <label><input type="radio" name="m${index}-nhomDoiTuong" value="(5) Các đối tượng không thuộc các đối tượng 1, 2, 3, 4. Ví dụ: Lao động tự do, tiểu thương, Nông dân, nội trợ, thất nghiệp,  trong độ tuổi 18-60, không hợp đồng lao động</label>
                     </div>
                 </div>
                 <div class="form-group">
