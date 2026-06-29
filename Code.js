@@ -25,15 +25,15 @@ function doPost(e) {
       sheet1.appendRow(['Mã Hộ', 'Chủ Hộ', 'Địa Chỉ', 'Khu Vực', 'SĐT Hộ', 'Tổng Số Nhân Khẩu']);
     }
 
-    var maHoTuDong = Math.max(sheet1.getLastRow(), 1);
+    var maHoTuDong = "HO_" + new Date().getTime();
 
     sheet1.appendRow([
-      maHoTuDong,
+      "'" + maHoTuDong,
       data.chuHo || '',
       data.diaChi || '',
       data.khuVuc || '',
       "'" + (data.sdtHo || ''),
-      data.tongNhanKhau || ''
+      data.tongNhanKhau || 0
     ]);
 
     var sheet2 = ss.getSheetByName('Thông tin thành viên trong hộ');
@@ -55,7 +55,7 @@ function doPost(e) {
     for (var i = 0; i < members.length; i++) {
       var m = members[i] || {};
       memberRows.push([
-        maHoTuDong,
+        "'" + maHoHoTuDong,
         m.stt || (i + 1),
         m.hoTen || '',
         m.hoKhau || '',
