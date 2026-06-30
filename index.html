@@ -371,6 +371,16 @@
             font-weight: 600;
             cursor: pointer;
         }
+        .options-grid label {
+            /* Ngăn trình duyệt di động tự động phóng to text */
+            -webkit-text-size-adjust: 100%;
+            -moz-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+    
+            /* Thiết lập font-size cố định để đảm bảo đồng nhất (nếu cần) */
+            /* font-size: 14px; */
+        }
     </style>
 </head>
 <body>
