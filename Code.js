@@ -1,4 +1,3 @@
-// Hàm hiển thị giao diện Web App
 function doGet() {
   var template = HtmlService.createTemplateFromFile('index');
   template.url = ScriptApp.getService().getUrl();
@@ -8,14 +7,22 @@ function doGet() {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-// Hàm tiếp nhận dữ liệu thành viên từ form và ghi vào sheet TDP
 function doPost(e) {
+  var lock = LockService.getScriptLock();
+
   try {
+    lock.waitLock(30000);
+
     var raw = (e && e.postData && e.postData.contents) || '{}';
     var data = JSON.parse(raw);
 
+    validatePayload(data);
+
     var spreadsheetId = '1gj70N3TTJUvAZxU_C0f_TN3HxTuwBCw6r80it2g1nQM';
     var ss = SpreadsheetApp.openById(spreadsheetId);
+    if (!ss) {
+      throw new Error('Không thể mở file Google Sheet.');
+    }
 
     var sheet = ss.getSheetByName('TDP');
     if (!sheet) {
@@ -26,12 +33,10 @@ function doPost(e) {
 
     var members = Array.isArray(data.members) ? data.members : [];
     if (members.length === 0) {
-      return ContentService
-        .createTextOutput(JSON.stringify({
-          status: 'success',
-          message: 'Không có thành viên nào để ghi.'
-        }))
-        .setMimeType(ContentService.MimeType.JSON);
+      return jsonOutput({
+        status: 'success',
+        message: 'Không có thành viên nào để ghi.'
+      });
     }
 
     var totalRow = findTotalRow(sheet);
@@ -44,7 +49,7 @@ function doPost(e) {
 
     var newRows = [];
     for (var i = 0; i < members.length; i++) {
-      newRows.push(buildMemberRow(members[i] || {}, 0));
+      newRows.push(buildMemberRow(members[i] || {}, i + 1));
     }
 
     var dataRange = sheet.getRange(insertAt, 1, newRows.length, 36);
@@ -55,76 +60,138 @@ function doPost(e) {
     updateTongSo(sheet);
     restoreFooterArea(sheet);
 
-    return ContentService
-      .createTextOutput(JSON.stringify({
-        status: 'success',
-        message: 'Ghi dữ liệu thành công!'
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
+    SpreadsheetApp.flush();
+
+    return jsonOutput({
+      status: 'success',
+      message: 'Ghi dữ liệu thành công!'
+    });
 
   } catch (error) {
-    return ContentService
-      .createTextOutput(JSON.stringify({
-        status: 'error',
-        message: error && error.message ? error.message : String(error)
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonOutput({
+      status: 'error',
+      message: error && error.message ? error.message : String(error)
+    });
+  } finally {
+    try {
+      lock.releaseLock();
+    } catch (e2) {}
   }
 }
 
-/**
- * Dựng layout giống file mẫu:
- * - tiêu đề đầu trang
- * - vùng header nhiều dòng
- * - dòng Tổng số
- * - vùng ký tên
- */
+function jsonOutput(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function validatePayload(data) {
+  if (!data || typeof data !== 'object') {
+    throw new Error('Dữ liệu không hợp lệ.');
+  }
+
+  var requiredFields = ['tenPhuong', 'toDanPho', 'toSo', 'chuHo', 'diaChi', 'sdtHo', 'tongNhanKhau'];
+  for (var i = 0; i < requiredFields.length; i++) {
+    var key = requiredFields[i];
+    if (!String(data[key] || '').trim()) {
+      throw new Error('Thiếu thông tin bắt buộc: ' + key);
+    }
+  }
+
+  if (!Array.isArray(data.members) || data.members.length === 0) {
+    throw new Error('Danh sách thành viên trống.');
+  }
+
+  var tongNhanKhau = Number(data.tongNhanKhau);
+  if (!tongNhanKhau || tongNhanKhau < 1) {
+    throw new Error('Tổng số nhân khẩu không hợp lệ.');
+  }
+
+  if (data.members.length !== tongNhanKhau) {
+    throw new Error('Số thành viên không khớp với tổng số nhân khẩu.');
+  }
+
+  for (var j = 0; j < data.members.length; j++) {
+    var m = data.members[j] || {};
+
+    if (!String(m.hoTen || '').trim()) {
+      throw new Error('Thiếu họ tên ở thành viên thứ ' + (j + 1));
+    }
+    if (!String(m.gioiTinh || '').trim()) {
+      throw new Error('Thiếu giới tính ở thành viên thứ ' + (j + 1));
+    }
+    if (!String(m.ngaySinh || '').trim()) {
+      throw new Error('Thiếu ngày sinh ở thành viên thứ ' + (j + 1));
+    }
+    if (!String(m.cuTru || '').trim()) {
+      throw new Error('Thiếu thông tin cư trú ở thành viên thứ ' + (j + 1));
+    }
+    if (!String(m.nhomChinh || '').trim()) {
+      throw new Error('Thiếu nhóm đối tượng ở thành viên thứ ' + (j + 1));
+    }
+
+    if (m.nhomChinh === 'nhom1' && !String(m.nhom1ChiTiet || '').trim()) {
+      throw new Error('Thiếu chi tiết nhóm 1 ở thành viên thứ ' + (j + 1));
+    }
+    if (m.nhomChinh === 'nhom2' && !String(m.nhom2ChiTiet || '').trim()) {
+      throw new Error('Thiếu chi tiết nhóm 2 ở thành viên thứ ' + (j + 1));
+    }
+    if (m.nhomChinh === 'nhom5' && !String(m.nhom5ChiTiet || '').trim()) {
+      throw new Error('Thiếu chi tiết nhóm 5 ở thành viên thứ ' + (j + 1));
+    }
+
+    if (m.khamSucKhoeDinhKy === 'Không' && !String(m.khamSangLoc || '').trim()) {
+      throw new Error('Phải chọn khám sàng lọc ở thành viên thứ ' + (j + 1));
+    }
+
+    if (m.khamSucKhoeDinhKy === 'Có' && String(m.khamSangLoc || '').trim()) {
+      throw new Error('Không được chọn khám sàng lọc khi đã đăng ký khám định kỳ ở thành viên thứ ' + (j + 1));
+    }
+  }
+}
+
 function setupSheetLayout(sheet, data) {
-  var numCols = 36; // A:AJ
+  var numCols = 36;
 
   ensureMinRows(sheet, 20);
   ensureMinColumns(sheet, numCols);
 
-  if (sheet.getLastRow() > 0) {
-    // Nếu đã có layout rồi thì chỉ đảm bảo footer còn đúng
+  var totalRow = findTotalRow(sheet);
+  if (sheet.getLastRow() > 0 && totalRow > 0) {
     restoreFooterArea(sheet);
     return;
   }
 
-  // Xóa merge cũ nếu có
   try {
+    sheet.clear();
     sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns()).breakApart();
   } catch (e) {}
 
-  // Độ rộng cột gần giống mẫu
   var widths = {
     1: 30, 2: 140, 3: 40, 4: 35, 5: 35, 6: 80, 7: 90, 8: 70, 9: 55, 10: 80,
     11: 40, 12: 40, 13: 40, 14: 48, 15: 48, 16: 48, 17: 48, 18: 45, 19: 45,
     20: 40, 21: 40, 22: 40, 23: 45, 24: 45, 25: 45, 26: 45, 27: 45, 28: 45,
     29: 45, 30: 45, 31: 45, 32: 45, 33: 45, 34: 45, 35: 45, 36: 45
   };
+
   for (var c = 1; c <= numCols; c++) {
     sheet.setColumnWidth(c, widths[c] || 45);
   }
 
-  // Font chung
   sheet.getRange(1, 1, 20, numCols)
     .setFontFamily('Times New Roman')
     .setVerticalAlignment('middle');
 
-  // Dòng 1: UBND PHƯỜNG
-  var tenPhuong = data.tenPhuong || 'UBND PHƯỜNG LONG BIÊN';
+  var tenPhuong = String(data.tenPhuong || 'UBND PHƯỜNG LONG BIÊN').trim();
   sheet.getRange('B1:F1').merge().setValue(tenPhuong)
     .setFontWeight('normal')
     .setHorizontalAlignment('center');
 
-  // Dòng 2: TỔ DÂN PHỐ
   var toDanPho = data.toDanPho ? 'TỔ DÂN PHỐ ' + data.toDanPho : 'TỔ DÂN PHỐ............................';
   sheet.getRange('B2:F2').merge().setValue(toDanPho)
     .setFontWeight('bold')
     .setHorizontalAlignment('center');
 
-  // Dòng 3: Tiêu đề lớn
   sheet.getRange(3, 6, 1, 26).merge().setValue(
     'BIỂU THU THẬP THÔNG TIN NGƯỜI DÂN PHƯỜNG LONG BIÊN PHỤC VỤ CÔNG TÁC KHÁM SỨC KHỎE ĐỊNH KỲ, KHÁM SÀNG LỌC MIỄN PHÍ NĂM 2026'
   ).setFontWeight('bold')
@@ -132,27 +199,21 @@ function setupSheetLayout(sheet, data) {
    .setWrap(true)
    .setFontSize(13);
 
-  // Dòng 4: Tổ số
   var toSoText = data.toSo ? 'Tổ số: ' + data.toSo : 'Tổ số: ....................';
   sheet.getRange('B4:F4').merge().setValue(toSoText)
     .setHorizontalAlignment('left');
 
-  // Header khối chính: dòng 5 -> 8
   buildComplexHeader(sheet);
 
-  // Dòng Tổng số ở dòng 16
   sheet.getRange(16, 1, 1, numCols).setBorder(true, true, true, true, true, true);
   sheet.getRange('A16:B16').merge().setValue('Tổng số')
     .setFontWeight('bold')
     .setHorizontalAlignment('center');
 
-  // Footer
   restoreFooterArea(sheet);
 
-  // Border header + vùng dữ liệu mẫu
   sheet.getRange(5, 1, 11, numCols).setBorder(true, true, true, true, true, true);
 
-  // Chiều cao dòng
   sheet.setRowHeight(1, 28);
   sheet.setRowHeight(2, 28);
   sheet.setRowHeight(3, 38);
@@ -164,9 +225,6 @@ function setupSheetLayout(sheet, data) {
 }
 
 function buildComplexHeader(sheet) {
-  // Cột A -> AJ = 36 cột
-
-  // Cột cố định A:J
   mergeAndSet(sheet, 'A5:A8', 'S\nT\nT');
   mergeAndSet(sheet, 'B5:B8', 'Họ và tên');
   mergeAndSet(sheet, 'C5:C8', 'Chủ\nhộ');
@@ -182,7 +240,6 @@ function buildComplexHeader(sheet) {
 
   mergeAndSet(sheet, 'J5:J8', 'Số điện thoại\n(đối với trẻ em\ndưới 18 tuổi\nghi SDT của\nngười giám hộ)');
 
-  // Đối tượng K:W
   mergeAndSet(sheet, 'K5:W5', 'Đối tượng\n(Đánh dấu X vào đúng đối tượng, đối với nhóm 1 có thể lựa chọn nhiều phương án)');
   mergeAndSet(sheet, 'K6:M7', 'Nhóm 1 (người cao tuổi; người khuyết tật; hộ nghèo, cận nghèo; người mắc bệnh mạn tính)');
   mergeAndSet(sheet, 'K8:K8', '<6 tuổi');
@@ -208,7 +265,6 @@ function buildComplexHeader(sheet) {
   mergeAndSet(sheet, 'V8:V8', '>18 tuổi');
   mergeAndSet(sheet, 'W6:W8', 'Từ tháng\n1/2026\ndến nay\nđã từng\nđược KSK\nmiễn phí');
 
-  // Đăng ký khám X:AJ
   mergeAndSet(sheet, 'X5:AJ5', 'Đăng Ký Khám\n(Đánh dấu X vào ô tương ứng, mỗi người chỉ được chọn 1 loại khám)');
   mergeAndSet(sheet, 'X6:X8', 'Khám\nsức khỏe\nđịnh kỳ');
   mergeAndSet(sheet, 'Y6:AJ6', 'Khám sàng lọc');
@@ -228,7 +284,6 @@ function buildComplexHeader(sheet) {
     'Rối\nloạn\ntâm thần\ndo rượu'
   ];
 
-  // Y(25) -> AJ(36) = 12 cột
   for (var i = 0; i < screeningHeaders.length; i++) {
     sheet.getRange(7, 25 + i, 2, 1).merge().setValue(screeningHeaders[i])
       .setWrap(true)
@@ -236,7 +291,6 @@ function buildComplexHeader(sheet) {
       .setVerticalAlignment('middle');
   }
 
-  // Căn giữa + wrap + bold toàn bộ vùng header
   sheet.getRange(5, 1, 4, 36)
     .setWrap(true)
     .setHorizontalAlignment('center')
@@ -254,7 +308,6 @@ function mergeAndSet(sheet, a1, value) {
   range.setVerticalAlignment('middle');
 }
 
-// Xây dựng mảng giá trị cho một dòng thành viên
 function buildMemberRow(m, stt) {
   return [
     stt,
@@ -305,11 +358,9 @@ function formatDataRows(range) {
     .setWrap(true)
     .setBorder(true, true, true, true, true, true);
 
-  // Cột họ tên căn trái
   range.offset(0, 1, range.getNumRows(), 1).setHorizontalAlignment('left');
 }
 
-// Đánh lại số STT cho tất cả các dòng dữ liệu trong sheet (bắt đầu từ dòng 9)
 function renumberSTT(sheet) {
   var totalRow = findTotalRow(sheet);
   if (totalRow < 0 || totalRow <= 9) return;
@@ -326,7 +377,6 @@ function renumberSTT(sheet) {
   }
 }
 
-// Cập nhật công thức đếm ở dòng "Tổng số"
 function updateTongSo(sheet) {
   var totalRow = findTotalRow(sheet);
   if (totalRow < 0) return;
@@ -392,7 +442,6 @@ function ensureMinColumns(sheet, minCols) {
   }
 }
 
-// Định dạng ngày tháng năm theo kiểu Việt Nam (d/m/yyyy)
 function formatDateVN(dateStr) {
   if (!dateStr) return '';
   var d = new Date(dateStr);
