@@ -4,11 +4,11 @@ function doGet() {
   template.url = ScriptApp.getService().getUrl();
 
   return template.evaluate()
-    .setTitle('Phiếu Điều Tra Thông Tin Hành Chính')
+    .setTitle('Phiếu Điều Tra Khám Sức Khỏe')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-// Hàm tiếp nhận dữ liệu từ Form gửi lên và ghi vào sheet TDP
+// Hàm tiếp nhận dữ liệu thành viên từ form và ghi vào sheet TDP
 function doPost(e) {
   try {
     var data = JSON.parse((e && e.postData && e.postData.contents) || '{}');
@@ -40,7 +40,7 @@ function doPost(e) {
 
     var newRows = [];
     for (var i = 0; i < members.length; i++) {
-      newRows.push(buildMemberRow(members[i] || {}, data.sdtHo || '', 0));
+      newRows.push(buildMemberRow(members[i] || {}, 0));
     }
 
     var dataRange = sheet.getRange(insertAt, 1, newRows.length, 36);
@@ -64,7 +64,7 @@ function doPost(e) {
 
 /**
  * Dựng layout giống file mẫu:
- * - tiêu đề đầu trang (dùng tenPhuong, toDanPho, toSo từ form)
+ * - tiêu đề đầu trang
  * - vùng header nhiều dòng
  * - dòng Tổng số
  * - vùng ký tên
@@ -106,7 +106,7 @@ function setupSheetLayout(sheet, data) {
     .setFontWeight('normal')
     .setHorizontalAlignment('center');
 
-  // Dòng 2: TỔ DÂN PHỐ (dùng toDanPho từ form)
+  // Dòng 2: TỔ DÂN PHỐ
   var toDanPho = data.toDanPho ? 'TỔ DÂN PHỐ ' + data.toDanPho : 'TỔ DÂN PHỐ............................';
   sheet.getRange('B2:F2').merge().setValue(toDanPho)
     .setFontWeight('bold')
@@ -120,7 +120,7 @@ function setupSheetLayout(sheet, data) {
    .setWrap(true)
    .setFontSize(13);
 
-  // Dòng 4: Tổ số (dùng toSo từ form)
+  // Dòng 4: Tổ số
   var toSoText = data.toSo ? 'Tổ số: ' + data.toSo : 'Tổ số: ....................';
   sheet.getRange('B4:F4').merge().setValue(toSoText)
     .setHorizontalAlignment('left');
@@ -239,7 +239,7 @@ function mergeAndSet(sheet, a1, value) {
 }
 
 // Xây dựng mảng giá trị cho một dòng thành viên
-function buildMemberRow(m, sdtHoFallback, stt) {
+function buildMemberRow(m, stt) {
   return [
     stt,
     m.hoTen || '',
@@ -250,7 +250,7 @@ function buildMemberRow(m, sdtHoFallback, stt) {
     "'" + (m.cccd || ''),
     m.cuTru === 'thuong_tru_hoac_tam_tru_12_thang' ? 'x' : '',
     m.cuTru === 'tam_tru_duoi_12_thang' ? 'x' : '',
-    "'" + (m.sdtCaNhan || sdtHoFallback || ''),
+    "'" + (m.sdtCaNhan || ''),
     m.nhomChinh === 'nhom1' && m.nhom1ChiTiet === 'duoi_6_tuoi' ? 'x' : '',
     m.nhomChinh === 'nhom1' && m.nhom1ChiTiet === '6_18_tuoi' ? 'x' : '',
     m.nhomChinh === 'nhom1' && m.nhom1ChiTiet === 'tren_18_tuoi' ? 'x' : '',
