@@ -415,6 +415,18 @@
         <h2>THÔNG TIN HỘ GIA ĐÌNH</h2>
         <form id="surveyForm">
             <div class="form-group">
+                <label class="main-label">Tên phường: <span style="color:red">*</span></label>
+                <input type="text" id="tenPhuong" required placeholder="Ví dụ: Phường Long Biên...">
+            </div>
+            <div class="form-group">
+                <label class="main-label">Tổ dân phố: <span style="color:red">*</span></label>
+                <input type="text" id="toDanPho" required placeholder="Ví dụ: Tổ 1, Tổ 2A...">
+            </div>
+            <div class="form-group">
+                <label class="main-label">Tổ số: <span style="color:red">*</span></label>
+                <input type="text" id="toSo" required placeholder="Ví dụ: 1, 2, 3A...">
+            </div>
+            <div class="form-group">
                 <label class="main-label">Họ và tên chủ hộ (Đại diện hộ gia đình): <span style="color:red">*</span></label>
                 <input type="text" id="chuHo" required placeholder="Nhập họ tên chủ hộ...">
             </div>
@@ -670,6 +682,9 @@
 
     function collectFormData() {
         const household = {
+            tenPhuong: document.getElementById('tenPhuong').value.trim(),
+            toDanPho: document.getElementById('toDanPho').value.trim(),
+            toSo: document.getElementById('toSo').value.trim(),
             chuHo: document.getElementById('chuHo').value.trim(),
             diaChi: document.getElementById('diaChi').value.trim(),
             sdtHo: document.getElementById('sdtHo').value.trim(),
