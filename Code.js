@@ -11,7 +11,8 @@ function doGet() {
 // Hàm tiếp nhận dữ liệu thành viên từ form và ghi vào sheet TDP
 function doPost(e) {
   try {
-    var data = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    var raw = (e && e.postData && e.postData.contents) || '{}';
+    var data = JSON.parse(raw);
 
     var spreadsheetId = '1gj70N3TTJUvAZxU_C0f_TN3HxTuwBCw6r80it2g1nQM';
     var ss = SpreadsheetApp.openById(spreadsheetId);
@@ -26,7 +27,10 @@ function doPost(e) {
     var members = Array.isArray(data.members) ? data.members : [];
     if (members.length === 0) {
       return ContentService
-        .createTextOutput(JSON.stringify({ status: 'success', message: 'Không có thành viên nào để ghi.' }))
+        .createTextOutput(JSON.stringify({
+          status: 'success',
+          message: 'Không có thành viên nào để ghi.'
+        }))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -52,12 +56,18 @@ function doPost(e) {
     restoreFooterArea(sheet);
 
     return ContentService
-      .createTextOutput(JSON.stringify({ status: 'success', message: 'Ghi dữ liệu thành công!' }))
+      .createTextOutput(JSON.stringify({
+        status: 'success',
+        message: 'Ghi dữ liệu thành công!'
+      }))
       .setMimeType(ContentService.MimeType.JSON);
 
   } catch (error) {
     return ContentService
-      .createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
+      .createTextOutput(JSON.stringify({
+        status: 'error',
+        message: error && error.message ? error.message : String(error)
+      }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 }
@@ -70,14 +80,16 @@ function doPost(e) {
  * - vùng ký tên
  */
 function setupSheetLayout(sheet, data) {
+  var numCols = 36; // A:AJ
+
+  ensureMinRows(sheet, 20);
+  ensureMinColumns(sheet, numCols);
+
   if (sheet.getLastRow() > 0) {
     // Nếu đã có layout rồi thì chỉ đảm bảo footer còn đúng
     restoreFooterArea(sheet);
     return;
   }
-
-  var numCols = 36; // A:AJ
-  ensureMinRows(sheet, 20);
 
   // Xóa merge cũ nếu có
   try {
@@ -137,7 +149,7 @@ function setupSheetLayout(sheet, data) {
   // Footer
   restoreFooterArea(sheet);
 
-  // Border header
+  // Border header + vùng dữ liệu mẫu
   sheet.getRange(5, 1, 11, numCols).setBorder(true, true, true, true, true, true);
 
   // Chiều cao dòng
@@ -216,8 +228,12 @@ function buildComplexHeader(sheet) {
     'Rối\nloạn\ntâm thần\ndo rượu'
   ];
 
+  // Y(25) -> AJ(36) = 12 cột
   for (var i = 0; i < screeningHeaders.length; i++) {
-    sheet.getRange(7, 25 + i, 2, 1).merge().setValue(screeningHeaders[i]);
+    sheet.getRange(7, 25 + i, 2, 1).merge().setValue(screeningHeaders[i])
+      .setWrap(true)
+      .setHorizontalAlignment('center')
+      .setVerticalAlignment('middle');
   }
 
   // Căn giữa + wrap + bold toàn bộ vùng header
@@ -325,9 +341,13 @@ function updateTongSo(sheet) {
 
 function findTotalRow(sheet) {
   var lastRow = sheet.getLastRow();
-  var values = sheet.getRange(1, 1, lastRow, 1).getValues();
+  if (lastRow < 1) return -1;
+
+  var values = sheet.getRange(1, 1, lastRow, 2).getDisplayValues();
   for (var i = 0; i < values.length; i++) {
-    if (String(values[i][0]).trim() === 'Tổng số') {
+    var colA = String(values[i][0] || '').trim();
+    var colB = String(values[i][1] || '').trim();
+    if (colA === 'Tổng số' || colB === 'Tổng số') {
       return i + 1;
     }
   }
@@ -340,6 +360,7 @@ function restoreFooterArea(sheet) {
 
   var footerStart = totalRow + 2;
   ensureMinRows(sheet, footerStart + 4);
+  ensureMinColumns(sheet, 36);
 
   sheet.getRange(footerStart, 23, 1, 5).merge().setValue('Ngày     tháng     năm 2026')
     .setHorizontalAlignment('center')
@@ -361,6 +382,13 @@ function ensureMinRows(sheet, minRows) {
   var current = sheet.getMaxRows();
   if (current < minRows) {
     sheet.insertRowsAfter(current, minRows - current);
+  }
+}
+
+function ensureMinColumns(sheet, minCols) {
+  var current = sheet.getMaxColumns();
+  if (current < minCols) {
+    sheet.insertColumnsAfter(current, minCols - current);
   }
 }
 
