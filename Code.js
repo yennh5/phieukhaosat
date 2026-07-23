@@ -11,7 +11,7 @@ function doGet() {
 // Hàm tiếp nhận dữ liệu từ Form gửi lên và ghi vào sheet TDP
 function doPost(e) {
   try {
-    var data = JSON.parse(e.postData.contents || '{}');
+    var data = JSON.parse((e && e.postData && e.postData.contents) || '{}');
 
     var spreadsheetId = '1gj70N3TTJUvAZxU_C0f_TN3HxTuwBCw6r80it2g1nQM';
     var ss = SpreadsheetApp.openById(spreadsheetId);
@@ -21,65 +21,7 @@ function doPost(e) {
       sheet = ss.insertSheet('TDP');
     }
 
-    var HEADERS = [
-      'STT',
-      'Họ và tên',
-      'Chủ hộ',
-      'Nam',
-      'Nữ',
-      'Ngày tháng năm sinh',
-      'CCCD/Số định danh',
-      'Thường trú hoặc tạm trú từ 12 tháng trở lên',
-      'Tạm trú dưới 12 tháng',
-      'Số điện thoại',
-      'Nhóm 1 - <6 tuổi',
-      'Nhóm 1 - 6-18 tuổi',
-      'Nhóm 1 - >18 tuổi',
-      'Nhóm 2 - Học ở phường Long Biên <6 tuổi',
-      'Nhóm 2 - Học ở phường Long Biên 6-18 tuổi',
-      'Nhóm 2 - Học ở ngoài phường Long Biên <6 tuổi',
-      'Nhóm 2 - Học ở ngoài phường Long Biên 6-18 tuổi',
-      'Nhóm 3',
-      'Nhóm 4',
-      'Nhóm 5 - <6 tuổi',
-      'Nhóm 5 - 6-18 tuổi',
-      'Nhóm 5 - >18 tuổi',
-      'Từ tháng 1/2026 đến nay đã từng được KSK miễn phí',
-      'Khám sức khỏe định kỳ',
-      'Tăng huyết áp',
-      'Đái tháo đường típ 2',
-      'Hen phế quản',
-      'Phổi tắc nghẽn mạn tính',
-      'Ung thư vú',
-      'Ung thư cổ tử cung',
-      'Ung thư khoang miệng',
-      'Ung thư đại trực tràng',
-      'Ung thư tuyến tiền liệt',
-      'Rối loạn trầm cảm',
-      'Rối loạn lo âu',
-      'Rối loạn tâm thần do rượu'
-    ];
-    var NUM_COLS = HEADERS.length; // 36 cột (A:AJ)
-
-    // Khởi tạo cấu trúc sheet nếu trống
-    if (sheet.getLastRow() === 0) {
-      sheet.getRange(1, 1, 1, NUM_COLS)
-        .setValues([HEADERS])
-        .setFontWeight('bold')
-        .setBorder(true, true, true, true, true, true);
-      // Tạo dòng "Tổng số" ban đầu
-      var tongSoInit = [];
-      for (var k = 0; k < NUM_COLS; k++) tongSoInit.push('');
-      tongSoInit[0] = 'Tổng số';
-      tongSoInit[1] = '0';
-      sheet.getRange(2, 1, 1, NUM_COLS).setValues([tongSoInit]).setFontWeight('bold');
-      // Tạo dòng chữ ký/footer
-      var footerRow = [];
-      for (var k = 0; k < NUM_COLS; k++) footerRow.push('');
-      footerRow[0] = 'Người lập biểu';
-      footerRow[NUM_COLS - 1] = 'Xác nhận của Trưởng thôn/TDP';
-      sheet.getRange(3, 1, 1, NUM_COLS).setValues([footerRow]);
-    }
+    setupSheetLayout(sheet, data);
 
     var members = Array.isArray(data.members) ? data.members : [];
     if (members.length === 0) {
@@ -88,43 +30,26 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    // Tìm vị trí dòng "Tổng số" (chỉ số 1-based trong sheet)
-    var allColA = sheet.getRange(1, 1, sheet.getLastRow(), 1).getValues();
-    var tongSoSheetRow = -1;
-    for (var i = 1; i < allColA.length; i++) {
-      if (allColA[i][0] === 'Tổng số') {
-        tongSoSheetRow = i + 1; // chuyển sang 1-based
-        break;
-      }
+    var totalRow = findTotalRow(sheet);
+    if (totalRow < 0) {
+      throw new Error('Không tìm thấy dòng "Tổng số".');
     }
 
-    // Vị trí chèn dòng mới: trước dòng "Tổng số", hoặc cuối sheet nếu không tìm thấy
-    var insertAt;
-    if (tongSoSheetRow > 0) {
-      insertAt = tongSoSheetRow;
-    } else {
-      insertAt = sheet.getLastRow() + 1;
-    }
+    var insertAt = totalRow;
+    sheet.insertRowsBefore(insertAt, members.length);
 
-    // Xây dựng các dòng dữ liệu thành viên mới
     var newRows = [];
     for (var i = 0; i < members.length; i++) {
       newRows.push(buildMemberRow(members[i] || {}, data.sdtHo || '', 0));
     }
 
-    // Chèn dòng mới vào sheet
-    if (tongSoSheetRow > 0) {
-      sheet.insertRowsBefore(insertAt, newRows.length);
-    }
-    var dataRange = sheet.getRange(insertAt, 1, newRows.length, NUM_COLS);
+    var dataRange = sheet.getRange(insertAt, 1, newRows.length, 36);
     dataRange.setValues(newRows);
-    dataRange.setBorder(true, true, true, true, true, true);
+    formatDataRows(dataRange);
 
-    // Đánh lại số thứ tự STT toàn sheet
     renumberSTT(sheet);
-
-    // Cập nhật công thức dòng "Tổng số"
-    updateTongSo(sheet, NUM_COLS);
+    updateTongSo(sheet);
+    restoreFooterArea(sheet);
 
     return ContentService
       .createTextOutput(JSON.stringify({ status: 'success', message: 'Ghi dữ liệu thành công!' }))
@@ -135,6 +60,182 @@ function doPost(e) {
       .createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+/**
+ * Dựng layout giống file mẫu:
+ * - tiêu đề đầu trang (dùng tenPhuong, toDanPho, toSo từ form)
+ * - vùng header nhiều dòng
+ * - dòng Tổng số
+ * - vùng ký tên
+ */
+function setupSheetLayout(sheet, data) {
+  if (sheet.getLastRow() > 0) {
+    // Nếu đã có layout rồi thì chỉ đảm bảo footer còn đúng
+    restoreFooterArea(sheet);
+    return;
+  }
+
+  var numCols = 36; // A:AJ
+  ensureMinRows(sheet, 20);
+
+  // Xóa merge cũ nếu có
+  try {
+    sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns()).breakApart();
+  } catch (e) {}
+
+  // Độ rộng cột gần giống mẫu
+  var widths = {
+    1: 30, 2: 140, 3: 40, 4: 35, 5: 35, 6: 80, 7: 90, 8: 70, 9: 55, 10: 80,
+    11: 40, 12: 40, 13: 40, 14: 48, 15: 48, 16: 48, 17: 48, 18: 45, 19: 45,
+    20: 40, 21: 40, 22: 40, 23: 45, 24: 45, 25: 45, 26: 45, 27: 45, 28: 45,
+    29: 45, 30: 45, 31: 45, 32: 45, 33: 45, 34: 45, 35: 45, 36: 45
+  };
+  for (var c = 1; c <= numCols; c++) {
+    sheet.setColumnWidth(c, widths[c] || 45);
+  }
+
+  // Font chung
+  sheet.getRange(1, 1, 20, numCols)
+    .setFontFamily('Times New Roman')
+    .setVerticalAlignment('middle');
+
+  // Dòng 1: UBND PHƯỜNG
+  var tenPhuong = data.tenPhuong || 'UBND PHƯỜNG LONG BIÊN';
+  sheet.getRange('B1:F1').merge().setValue(tenPhuong)
+    .setFontWeight('normal')
+    .setHorizontalAlignment('center');
+
+  // Dòng 2: TỔ DÂN PHỐ (dùng toDanPho từ form)
+  var toDanPho = data.toDanPho ? 'TỔ DÂN PHỐ ' + data.toDanPho : 'TỔ DÂN PHỐ............................';
+  sheet.getRange('B2:F2').merge().setValue(toDanPho)
+    .setFontWeight('bold')
+    .setHorizontalAlignment('center');
+
+  // Dòng 3: Tiêu đề lớn
+  sheet.getRange(3, 6, 1, 26).merge().setValue(
+    'BIỂU THU THẬP THÔNG TIN NGƯỜI DÂN PHƯỜNG LONG BIÊN PHỤC VỤ CÔNG TÁC KHÁM SỨC KHỎE ĐỊNH KỲ, KHÁM SÀNG LỌC MIỄN PHÍ NĂM 2026'
+  ).setFontWeight('bold')
+   .setHorizontalAlignment('center')
+   .setWrap(true)
+   .setFontSize(13);
+
+  // Dòng 4: Tổ số (dùng toSo từ form)
+  var toSoText = data.toSo ? 'Tổ số: ' + data.toSo : 'Tổ số: ....................';
+  sheet.getRange('B4:F4').merge().setValue(toSoText)
+    .setHorizontalAlignment('left');
+
+  // Header khối chính: dòng 5 -> 8
+  buildComplexHeader(sheet);
+
+  // Dòng Tổng số ở dòng 16
+  sheet.getRange(16, 1, 1, numCols).setBorder(true, true, true, true, true, true);
+  sheet.getRange('A16:B16').merge().setValue('Tổng số')
+    .setFontWeight('bold')
+    .setHorizontalAlignment('center');
+
+  // Footer
+  restoreFooterArea(sheet);
+
+  // Border header
+  sheet.getRange(5, 1, 11, numCols).setBorder(true, true, true, true, true, true);
+
+  // Chiều cao dòng
+  sheet.setRowHeight(1, 28);
+  sheet.setRowHeight(2, 28);
+  sheet.setRowHeight(3, 38);
+  sheet.setRowHeight(4, 28);
+  sheet.setRowHeight(5, 32);
+  sheet.setRowHeight(6, 70);
+  sheet.setRowHeight(7, 70);
+  sheet.setRowHeight(8, 40);
+}
+
+function buildComplexHeader(sheet) {
+  // Cột A -> AJ = 36 cột
+
+  // Cột cố định A:J
+  mergeAndSet(sheet, 'A5:A8', 'S\nT\nT');
+  mergeAndSet(sheet, 'B5:B8', 'Họ và tên');
+  mergeAndSet(sheet, 'C5:C8', 'Chủ\nhộ');
+  mergeAndSet(sheet, 'D5:E6', 'Giới tính');
+  mergeAndSet(sheet, 'D7:D8', 'Nam');
+  mergeAndSet(sheet, 'E7:E8', 'Nữ');
+  mergeAndSet(sheet, 'F5:F8', 'Ngày tháng\nnăm sinh');
+  mergeAndSet(sheet, 'G5:G8', 'CCCD/\nSố định danh');
+
+  mergeAndSet(sheet, 'H5:I6', 'Thông tin cư trú\n(theo VNeID)');
+  mergeAndSet(sheet, 'H7:H8', 'Thường trú hoặc\ntạm trú từ\n12 tháng trở lên');
+  mergeAndSet(sheet, 'I7:I8', 'Tạm trú\ndưới 12 tháng');
+
+  mergeAndSet(sheet, 'J5:J8', 'Số điện thoại\n(đối với trẻ em\ndưới 18 tuổi\nghi SDT của\nngười giám hộ)');
+
+  // Đối tượng K:W
+  mergeAndSet(sheet, 'K5:W5', 'Đối tượng\n(Đánh dấu X vào đúng đối tượng, đối với nhóm 1 có thể lựa chọn nhiều phương án)');
+  mergeAndSet(sheet, 'K6:M7', 'Nhóm 1 (người cao tuổi; người khuyết tật; hộ nghèo, cận nghèo; người mắc bệnh mạn tính)');
+  mergeAndSet(sheet, 'K8:K8', '<6 tuổi');
+  mergeAndSet(sheet, 'L8:L8', '6-18 tuổi');
+  mergeAndSet(sheet, 'M8:M8', '>18 tuổi');
+
+  mergeAndSet(sheet, 'N6:Q7', 'Nhóm 2 (học sinh từ mầm non đến THPT)');
+
+  sheet.getRange('N7:O7').merge().setValue('Học ở phường\nLong Biên')
+    .setWrap(true).setHorizontalAlignment('center').setVerticalAlignment('middle');
+  sheet.getRange('P7:Q7').merge().setValue('Học ở ngoài\nphường Long Biên')
+    .setWrap(true).setHorizontalAlignment('center').setVerticalAlignment('middle');
+  sheet.getRange('N8').setValue('<6 tuổi');
+  sheet.getRange('O8').setValue('6-18\ntuổi');
+  sheet.getRange('P8').setValue('<6 tuổi');
+  sheet.getRange('Q8').setValue('6-18\ntuổi');
+
+  mergeAndSet(sheet, 'R6:R8', 'Nhóm 3\n\nNgười lao động trong công ty,\ncơ quan, xí nghiệp,\nnhà máy...');
+  mergeAndSet(sheet, 'S6:S8', 'Nhóm 4\n\nLực lượng\nvũ trang');
+  mergeAndSet(sheet, 'T6:V7', 'Nhóm 5\n(những người không thuộc nhóm 1, 2, 3, 4 như lao động tự do, trẻ em không đi học...)');
+  mergeAndSet(sheet, 'T8:T8', '<6 tuổi');
+  mergeAndSet(sheet, 'U8:U8', '6-18 tuổi');
+  mergeAndSet(sheet, 'V8:V8', '>18 tuổi');
+  mergeAndSet(sheet, 'W6:W8', 'Từ tháng\n1/2026\ndến nay\nđã từng\nđược KSK\nmiễn phí');
+
+  // Đăng ký khám X:AJ
+  mergeAndSet(sheet, 'X5:AJ5', 'Đăng Ký Khám\n(Đánh dấu X vào ô tương ứng, mỗi người chỉ được chọn 1 loại khám)');
+  mergeAndSet(sheet, 'X6:X8', 'Khám\nsức khỏe\nđịnh kỳ');
+  mergeAndSet(sheet, 'Y6:AJ6', 'Khám sàng lọc');
+
+  var screeningHeaders = [
+    'Tăng\nhuyết\náp',
+    'Đái\ntháo\nđường\ntýp 2',
+    'Hen\nphế\nquản',
+    'Phổi tắc\nnghẽn\nmạn tính',
+    'Ung\nthư\nvú',
+    'Ung\nthư\ncổ cung',
+    'Ung thư\nkhoang\nmiệng',
+    'Ung\nthư đại\ntrực\ntràng',
+    'Ung thư\ntuyến\ntiền liệt',
+    'Rối\nloạn\ntrầm\ncảm',
+    'Rối\nloạn\nlo âu',
+    'Rối\nloạn\ntâm thần\ndo rượu'
+  ];
+
+  for (var i = 0; i < screeningHeaders.length; i++) {
+    sheet.getRange(7, 25 + i, 2, 1).merge().setValue(screeningHeaders[i]);
+  }
+
+  // Căn giữa + wrap + bold toàn bộ vùng header
+  sheet.getRange(5, 1, 4, 36)
+    .setWrap(true)
+    .setHorizontalAlignment('center')
+    .setVerticalAlignment('middle')
+    .setFontWeight('bold')
+    .setBorder(true, true, true, true, true, true);
+}
+
+function mergeAndSet(sheet, a1, value) {
+  var range = sheet.getRange(a1);
+  range.merge();
+  range.setValue(value);
+  range.setWrap(true);
+  range.setHorizontalAlignment('center');
+  range.setVerticalAlignment('middle');
 }
 
 // Xây dựng mảng giá trị cho một dòng thành viên
@@ -179,46 +280,87 @@ function buildMemberRow(m, sdtHoFallback, stt) {
   ];
 }
 
-// Đánh lại số STT cho tất cả các dòng dữ liệu trong sheet (dựa trên cột B không rỗng)
-function renumberSTT(sheet) {
-  var lastRow = sheet.getLastRow();
-  if (lastRow < 2) return;
+function formatDataRows(range) {
+  range
+    .setFontFamily('Times New Roman')
+    .setFontSize(10)
+    .setHorizontalAlignment('center')
+    .setVerticalAlignment('middle')
+    .setWrap(true)
+    .setBorder(true, true, true, true, true, true);
 
-  var values = sheet.getRange(2, 1, lastRow - 1, 2).getValues();
+  // Cột họ tên căn trái
+  range.offset(0, 1, range.getNumRows(), 1).setHorizontalAlignment('left');
+}
+
+// Đánh lại số STT cho tất cả các dòng dữ liệu trong sheet (bắt đầu từ dòng 9)
+function renumberSTT(sheet) {
+  var totalRow = findTotalRow(sheet);
+  if (totalRow < 0 || totalRow <= 9) return;
+
   var stt = 1;
-  for (var i = 0; i < values.length; i++) {
-    var colA = String(values[i][0]);
-    var colB = values[i][1];
-    // Bỏ qua dòng "Tổng số", dòng footer và dòng trống
-    if (colA === 'Tổng số') continue;
-    if (colB === '' || colB === null || colB === undefined) continue;
-    sheet.getRange(i + 2, 1).setValue(stt);
-    stt++;
+  for (var row = 9; row < totalRow; row++) {
+    var name = sheet.getRange(row, 2).getValue();
+    if (name !== '') {
+      sheet.getRange(row, 1).setValue(stt);
+      stt++;
+    } else {
+      sheet.getRange(row, 1).setValue('');
+    }
   }
 }
 
-// Cập nhật công thức đếm ở dòng "Tổng số" theo phạm vi dữ liệu thực tế
-function updateTongSo(sheet, numCols) {
-  var lastRow = sheet.getLastRow();
-  if (lastRow < 2) return;
+// Cập nhật công thức đếm ở dòng "Tổng số"
+function updateTongSo(sheet) {
+  var totalRow = findTotalRow(sheet);
+  if (totalRow < 0) return;
 
-  var colAValues = sheet.getRange(1, 1, lastRow, 1).getValues();
-  var tongSoSheetRow = -1;
-  for (var i = 1; i < colAValues.length; i++) {
-    if (colAValues[i][0] === 'Tổng số') {
-      tongSoSheetRow = i + 1; // 1-based
-      break;
+  var lastDataRow = totalRow - 1;
+  if (lastDataRow < 9) {
+    sheet.getRange(totalRow, 2).setValue('0');
+  } else {
+    sheet.getRange(totalRow, 2).setFormula('=COUNTA(B9:B' + lastDataRow + ')');
+  }
+}
+
+function findTotalRow(sheet) {
+  var lastRow = sheet.getLastRow();
+  var values = sheet.getRange(1, 1, lastRow, 1).getValues();
+  for (var i = 0; i < values.length; i++) {
+    if (String(values[i][0]).trim() === 'Tổng số') {
+      return i + 1;
     }
   }
+  return -1;
+}
 
-  if (tongSoSheetRow < 0) return;
+function restoreFooterArea(sheet) {
+  var totalRow = findTotalRow(sheet);
+  if (totalRow < 0) return;
 
-  // Công thức đếm số ô có dữ liệu trong cột B từ dòng 2 đến dòng liền trước "Tổng số"
-  var lastDataRow = tongSoSheetRow - 1;
-  if (lastDataRow < 2) {
-    sheet.getRange(tongSoSheetRow, 2).setValue('0');
-  } else {
-    sheet.getRange(tongSoSheetRow, 2).setFormula('=COUNTA(B2:B' + lastDataRow + ')');
+  var footerStart = totalRow + 2;
+  ensureMinRows(sheet, footerStart + 4);
+
+  sheet.getRange(footerStart, 23, 1, 5).merge().setValue('Ngày     tháng     năm 2026')
+    .setHorizontalAlignment('center')
+    .setFontFamily('Times New Roman')
+    .setFontStyle('italic');
+
+  sheet.getRange(footerStart + 1, 12, 1, 4).merge().setValue('Người điều tra')
+    .setFontWeight('bold')
+    .setHorizontalAlignment('center')
+    .setFontFamily('Times New Roman');
+
+  sheet.getRange(footerStart + 1, 23, 1, 7).merge().setValue('Người nhận phiếu điều tra')
+    .setFontWeight('bold')
+    .setHorizontalAlignment('center')
+    .setFontFamily('Times New Roman');
+}
+
+function ensureMinRows(sheet, minRows) {
+  var current = sheet.getMaxRows();
+  if (current < minRows) {
+    sheet.insertRowsAfter(current, minRows - current);
   }
 }
 
