@@ -203,11 +203,11 @@ function buildComplexHeader(sheet) {
 
   var screeningHeaders = [
     'Tăng\nhuyết\náp',
-    'Đái\ntháo\nđường\ntýp 2',
+    'Đái\ntháo\nđường\ntíp 2',
     'Hen\nphế\nquản',
     'Phổi tắc\nnghẽn\nmạn tính',
     'Ung\nthư\nvú',
-    'Ung\nthư\ncổ cung',
+    'Ung\nthư\ncổ tử\ncung',
     'Ung thư\nkhoang\nmiệng',
     'Ung\nthư đại\ntrực\ntràng',
     'Ung thư\ntuyến\ntiền liệt',
